@@ -1,0 +1,31 @@
+# tasks/hard_integration.yaml
+name: hard_integration
+difficulty: hard
+description: >
+  Two datasets (orders + customers) with conflicting schemas, duplicate keys,
+  missing join fields, and inconsistent formats. Merge and clean them into
+  a single unified dataset.
+dirty_data_path: data/dirty/olist_dirty.csv
+clean_data_path: data/clean/olist_clean.csv
+success_threshold: 0.85
+max_steps: 30
+corruption_types:
+  - missing_values
+  - duplicates
+  - type_mismatches
+  - conflicting_schemas
+  - multi_source_conflicts
+expected_schema:
+  order_id: object
+  customer_id: object
+  order_status: object
+  order_purchase_timestamp: object
+  customer_city: object
+  customer_state: object
+  order_item_id: int
+  price: float
+  freight_value: float
+grader_weights:
+  schema_match: 0.35
+  value_similarity: 0.35
+  model_performance: 0.30

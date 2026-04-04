@@ -1,0 +1,29 @@
+# tasks/easy_missing.yaml
+name: easy_missing
+difficulty: easy
+description: >
+  A customer dataset with missing values across multiple columns.
+  Fix all missing data using appropriate imputation strategies.
+dirty_data_path: data/dirty/titanic_dirty.csv
+clean_data_path: data/clean/titanic_clean.csv
+success_threshold: 0.90
+max_steps: 20
+corruption_types:
+  - missing_values
+expected_schema:
+  PassengerId: int
+  Survived: int
+  Pclass: int
+  Name: object
+  Sex: object
+  Age: float
+  SibSp: int
+  Parch: int
+  Ticket: object
+  Fare: float
+  Cabin: object
+  Embarked: object
+grader_weights:
+  schema_match: 0.30
+  value_similarity: 0.50
+  model_performance: 0.20

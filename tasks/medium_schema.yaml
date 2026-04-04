@@ -1,0 +1,32 @@
+# tasks/medium_schema.yaml
+name: medium_schema
+difficulty: medium
+description: >
+  A housing dataset with type mismatches, inconsistent column naming,
+  and schema violations. Fix types and standardize the schema.
+dirty_data_path: data/dirty/house_prices_dirty.csv
+clean_data_path: data/clean/house_prices_clean.csv
+success_threshold: 0.88
+max_steps: 25
+corruption_types:
+  - type_mismatches
+  - missing_values
+  - inconsistent_naming
+expected_schema:
+  Id: int
+  MSSubClass: int
+  LotArea: int
+  OverallQual: int
+  OverallCond: int
+  YearBuilt: int
+  TotalBsmtSF: float
+  GrLivArea: int
+  FullBath: int
+  BedroomAbvGr: int
+  TotRmsAbvGrd: int
+  GarageCars: float
+  SalePrice: int
+grader_weights:
+  schema_match: 0.40
+  value_similarity: 0.40
+  model_performance: 0.20
