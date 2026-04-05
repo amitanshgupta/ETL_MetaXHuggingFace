@@ -36,14 +36,12 @@ class ObservationBuilder:
         return stats
 
     def _quality_metrics(self, df: pd.DataFrame, task_config: TaskConfig) -> DataQualityMetrics:
-        completeness = 1.0 - df.isna().mean().mean()
-
-        dup_rate = df.duplicated().sum() / len(df) if len(df) > 0 else 0.0
-        uniqueness = 1.0 - dup_rate
-
-        validity = self._compute_validity(df, task_config.expected_schema)
-
-        consistency = self._compute_consistency(df, task_config.expected_schema)
+        return DataQualityMetrics(
+            completeness=round(1.0 - missing_rate(df), 4),
+            uniqueness=round(1.0 - duplicate_rate(df), 4),
+            validity=compute_validity(df, task_config.expected_schema),
+            consistency=compute_consistency(df, task_config.expected_schema),
+        )
 
         return DataQualityMetrics(
             completeness=round(completeness, 4),

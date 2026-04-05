@@ -23,17 +23,10 @@ class RewardComputer:
     DESTRUCTIVE_DROP_THRESHOLD = 0.20  # if action drops >20% rows, penalize
 
     def compute_quality(self, df: pd.DataFrame, clean_df: pd.DataFrame, task_config: TaskConfig) -> float:
-        """
-        Q = weighted sum of (completeness, uniqueness, validity, consistency)
-        All components in [0, 1], so Q is in [0, 1].
-        """
-        completeness = 1.0 - df.isna().mean().mean()
-
-        dup_rate = df.duplicated().sum() / len(df) if len(df) > 0 else 0.0
-        uniqueness = 1.0 - dup_rate
-
-        validity = self._validity(df, task_config.expected_schema)
-        consistency = self._consistency(df, task_config.expected_schema)
+        completeness = 1.0 - missing_rate(df)
+        uniqueness   = 1.0 - duplicate_rate(df)
+        validity     = compute_validity(df, task_config.expected_schema)
+        consistency  = compute_consistency(df, task_config.expected_schema)
 
         return round(
             self.W_COMPLETENESS * completeness +
@@ -42,6 +35,7 @@ class RewardComputer:
             self.W_CONSISTENCY  * consistency,
             4
         )
+    
 
     def compute_reward(
         self,

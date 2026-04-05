@@ -1,0 +1,57 @@
+name: etl-openenv
+version: "1.0.0"
+description: >
+  Autonomous Data Cleaning & ETL Environment.
+  An AI agent performs step-by-step data cleaning on messy datasets
+  to produce clean, model-ready data.
+
+interface:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+
+actions:
+  - impute_mean
+  - impute_mode
+  - impute_constant
+  - drop_column
+  - drop_rows
+  - convert_type
+  - normalize
+  - remove_duplicates
+  - rename_column
+  - split_column
+  - merge_columns
+
+tasks:
+  - name: easy_missing
+    difficulty: easy
+    path: tasks/easy_missing.yaml
+  - name: medium_schema
+    difficulty: medium
+    path: tasks/medium_schema.yaml
+  - name: hard_integration
+    difficulty: hard
+    path: tasks/hard_integration.yaml
+
+reward:
+  type: dense
+  range: [-1.0, 1.0]
+  components:
+    - completeness
+    - uniqueness
+    - validity
+    - consistency
+
+grader:
+  deterministic: true
+  score_range: [0.0, 1.0]
+  components:
+    - schema_match
+    - value_similarity
+    - model_performance
+
+deployment:
+  framework: fastapi
+  port: 8000
+  dockerfile: Dockerfile
