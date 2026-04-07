@@ -8,6 +8,9 @@ from pydantic import BaseModel
 from typing import Optional
 import uvicorn
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+
 from env.environment import ETLEnvironment
 from env.models import Action, StepResult, Observation
 
@@ -77,6 +80,16 @@ def list_actions():
     """Returns all valid action types for agent reference."""
     from env.models import ActionType
     return {"actions": [a.value for a in ActionType]}
+
+from pathlib import Path
+
+@app.get("/", response_class=HTMLResponse)
+def ui():
+    file_path = Path(__file__).parent / "index.html"
+    if not file_path.exists():
+        raise HTTPException(status_code=500, detail="index.html not found")
+
+    return file_path.read_text(encoding="utf-8")
 
 
 if __name__ == "__main__":

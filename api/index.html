@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ETL OpenEnv Dashboard</title>
+  <style>
+    /* Modern CSS Reset & Variables */
+    :root {
+      --bg-main: #0f172a;      /* Slate 900 */
+      --bg-panel: #1e293b;     /* Slate 800 */
+      --bg-elevated: #334155;  /* Slate 700 */
+      --text-main: #f8fafc;    /* Slate 50 */
+      --text-muted: #94a3b8;   /* Slate 400 */
+      --primary: #6366f1;      /* Indigo 500 */
+      --primary-hover: #4f46e5;/* Indigo 600 */
+      --success: #10b981;      /* Emerald 500 */
+      --success-bg: #064e3b;   /* Emerald 900 */
+      --warning: #f59e0b;      /* Amber 500 */
+      --danger: #ef4444;       /* Red 500 */
+      --border: #334155;
+      --radius-lg: 12px;
+      --radius-md: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+    
+    body { background: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+
+    /* Layout: Sidebar */
+    aside { width: 300px; background: var(--bg-panel); padding: 24px; display: flex; flex-direction: column; gap: 24px; border-right: 1px solid var(--border); overflow-y: auto; }
+    
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; color: var(--text-main); }
+    .brand span { color: var(--primary); }
+
+    .input-group label { font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input, button { width: 100%; padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 14px; outline: none; transition: all 0.2s; }
+    select, input { background: var(--bg-main); color: var(--text-main); }
+    select:focus, input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
+    
+    button { cursor: pointer; font-weight: 600; border: none; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    #btn-reset { background: var(--bg-elevated); color: var(--text-main); }
+    #btn-reset:hover:not(:disabled) { background: var(--border); }
+
+    /* Quality Metrics */
+    .panel-box { background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+    .panel-box h4 { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    .metric { margin-bottom: 12px; font-size: 13px; }
+    .metric:last-child { margin-bottom: 0; }
+    .metric-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-weight: 500; }
+    .bar-bg { width: 100%; height: 6px; background: var(--bg-main); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.4s ease, background-color 0.3s ease; width: 0%; }
+
+    /* Main Content Area */
+    main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    
+    header { padding: 20px 32px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+    header span { font-size: 14px; color: var(--text-muted); }
+    header b { color: var(--text-main); font-weight: 600; margin-left: 4px; }
+    
+    .badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: var(--bg-elevated); color: var(--text-muted); letter-spacing: 0.5px; }
+    .badge.in-progress { background: rgba(99, 102, 241, 0.2); color: var(--primary); }
+    .badge.done { background: var(--success-bg); color: var(--success); }
+
+    #status-msg { font-size: 14px; font-weight: 500; margin-left: auto; transition: opacity 0.3s; }
+
+    /* Content Grid */
+    #content { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 32px; overflow-y: auto; flex: 1; align-content: start; }
+    .card { background: var(--bg-panel); border-radius: var(--radius-lg); padding: 24px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    .card.full-width { grid-column: span 2; }
+    .card h3 { font-size: 15px; color: var(--text-main); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+    /* Tables */
+    .table-container { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+    th { color: var(--text-muted); padding: 10px 12px; border-bottom: 2px solid var(--border); font-weight: 600; }
+    td { padding: 10px 12px; border-bottom: 1px solid rgba(51, 65, 85, 0.5); color: var(--text-main); }
+    tr:hover td { background: rgba(51, 65, 85, 0.3); }
+    .null-val { color: var(--danger); font-style: italic; background: rgba(239, 68, 68, 0.1); padding: 2px 6px; border-radius: 4px; }
+    .ok-text { color: var(--success); }
+    .warn-text { color: var(--warning); }
+
+    /* Action Panel */
+    #action-panel { padding: 24px 32px; background: var(--bg-panel); border-top: 1px solid var(--border); display: flex; gap: 16px; align-items: flex-end; box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05); }
+    #action-panel .input-group { flex: 1; }
+    #btn-step { background: var(--primary); color: white; width: auto; padding: 12px 32px; font-size: 15px; box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39); }
+    #btn-step:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); }
+
+    /* History Feed */
+    .hist-item { display: flex; justify-content: space-between; font-size: 13px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .hist-item:last-child { border-bottom: none; }
+    .reward-pos { color: var(--success); font-weight: 600; }
+    .reward-neg { color: var(--danger); font-weight: 600; }
+    
+    /* Loading Overlay */
+    #loading { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(2px); z-index: 10; justify-content: center; align-items: center; color: var(--primary); font-size: 24px; }
+  </style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <span>◈</span> ETL OpenEnv
+  </div>
+
+  <div class="input-group">
+    <label>Select Environment Task</label>
+    <select id="task-select">
+      <option value="tasks/easy_missing.yaml">🟢 Easy — Titanic (Missing Values)</option>
+      <option value="tasks/medium_schema.yaml">🟡 Medium — House Prices (Schema)</option>
+      <option value="tasks/hard_integration.yaml">🔴 Hard — Olist (Integration)</option>
+    </select>
+  </div>
+
+  <button id="btn-reset">⟳ Reset Environment</button>
+
+  <div class="panel-box">
+    <h4>Data Quality Metrics</h4>
+    <div id="metrics-container">
+      <div class="metric"><div class="metric-header"><span>Waiting for data...</span></div></div>
+    </div>
+  </div>
+
+  <div class="panel-box" style="flex: 1; overflow-y: auto;">
+    <h4>Action Log</h4>
+    <div id="history"><span style="color: var(--text-muted); font-size: 13px;">No actions taken yet.</span></div>
+  </div>
+</aside>
+
+<main>
+  <div id="loading">Loading...</div>
+  
+  <header>
+    <span>Step: <b id="t-step">0</b></span>
+    <span>Remaining: <b id="t-remaining">—</b></span>
+    <span>Overall Quality: <b id="t-quality">—</b></span>
+    <span id="t-done" class="badge">NOT STARTED</span>
+    <span id="status-msg"></span>
+  </header>
+
+  <div id="content">
+    <div class="card full-width">
+      <h3>📋 Sample Data View</h3>
+      <div class="table-container" id="sample-table">
+        <p style="color: var(--text-muted); font-size: 14px;">Select a task and click 'Reset Environment' to initialize the workspace.</p>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>📊 Column Profiling</h3>
+      <div class="table-container" id="col-stats">
+        <p style="color: var(--text-muted); font-size: 14px;">—</p>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>🎯 Task Objective</h3>
+      <div id="task-desc" style="font-size:14px; line-height:1.6; color:var(--text-muted);">—</div>
+    </div>
+  </div>
+
+  <div id="action-panel">
+    <div class="input-group">
+      <label>Action Method</label>
+      <select id="action-type">
+        <option value="remove_duplicates">remove_duplicates</option>
+        <option value="impute_mean">impute_mean</option>
+        <option value="impute_mode">impute_mode</option>
+        <option value="impute_constant">impute_constant</option>
+        <option value="drop_column">drop_column</option>
+        <option value="drop_rows">drop_rows</option>
+        <option value="convert_type">convert_type</option>
+        <option value="normalize">normalize</option>
+        <option value="rename_column">rename_column</option>
+        <option value="split_column">split_column</option>
+        <option value="merge_columns">merge_columns</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>Target Column</label>
+      <input id="action-col" placeholder="e.g. Age" />
+    </div>
+    <div class="input-group">
+      <label>Parameters (JSON)</label>
+      <input id="action-params" placeholder='e.g. {"dtype":"float"}' />
+    </div>
+    <button id="btn-step" disabled>Execute Step ▶</button>
+  </div>
+</main>
+
+<script>
+  // Configuration
+  const API = "http://localhost:8000";
+  let obs = null;
+
+  // Utility to grab elements
+  const $ = id => document.getElementById(id);
+  
+  // Show/Hide loading overlay
+  const setLoading = (isLoading) => {
+    $("loading").style.display = isLoading ? "flex" : "none";
+    $("btn-reset").disabled = isLoading;
+    $("btn-step").disabled = isLoading || $("t-done").textContent.includes("DONE") || !obs;
+  };
+
+  // Helper to handle API errors
+  const handleApiError = (err) => {
+    $("status-msg").textContent = "⚠ Connection Error. Is FastAPI running?";
+    $("status-msg").style.color = "var(--danger)";
+    console.error("API Error:", err);
+  };
+
+  async function reset() {
+    const task = $("task-select").value;
+    setLoading(true);
+    
+    try {
+      const res = await fetch(`${API}/reset`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({task_path: task})
+      });
+      
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      
+      obs = await res.json();
+      
+      $("status-msg").textContent = "Environment initialized.";
+      $("status-msg").style.color = "var(--text-muted)";
+      $("t-done").className = "badge in-progress";
+      $("t-done").textContent = "IN PROGRESS";
+      
+      render(obs);
+    } catch (err) {
+      handleApiError(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function step() {
+    const type = $("action-type").value;
+    const col = $("action-col").value.trim() || null;
+    let params = {};
+    
+    if ($("action-params").value.trim()) {
+      try { 
+        params = JSON.parse($("action-params").value); 
+      } catch { 
+        $("status-msg").textContent = "⚠ Invalid JSON in params"; 
+        $("status-msg").style.color = "var(--danger)";
+        return; 
+      }
+    }
+
+    setLoading(true);
+    const action = {type, column: col, params};
+    
+    try {
+      const res = await fetch(`${API}/step`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action})
+      });
+      
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      
+      const result = await res.json();
+      obs = result.observation;
+      const reward = result.reward;
+      
+      // Update Status Message
+      $("status-msg").textContent = `Reward: ${reward > 0 ? "+" : ""}${reward.toFixed(4)} | Quality: ${result.info.quality_score?.toFixed(4) ?? "—"}`;
+      $("status-msg").style.color = reward >= 0 ? "var(--success)" : "var(--danger)";
+
+      // Check if done
+      if (result.done) {
+        $("t-done").className = "badge done";
+        $("t-done").textContent = `✅ DONE — Final Score: ${result.info.final_score?.toFixed(4) ?? "—"}`;
+      }
+
+      render(obs);
+    } catch (err) {
+      handleApiError(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function render(o) {
+    // Top Bar updates
+    $("t-step").textContent = o.step ?? 0;
+    $("t-remaining").textContent = o.remaining_steps ?? 0;
+    
+    // Quality Calculation
+    if (o.quality) {
+      const totalQuality = (
+        0.35 * (o.quality.completeness || 0) +
+        0.20 * (o.quality.uniqueness || 0) +
+        0.25 * (o.quality.validity || 0) +
+        0.20 * (o.quality.consistency || 0)
+      );
+      $("t-quality").textContent = totalQuality.toFixed(4);
+
+      // Render Dynamic Quality Bars
+      const metricsHtml = ["completeness","uniqueness","validity","consistency"].map(k => {
+        const v = o.quality[k] || 0;
+        const color = v > 0.8 ? "var(--success)" : v > 0.5 ? "var(--warning)" : "var(--danger)";
+        return `
+          <div class="metric">
+            <div class="metric-header">
+              <span style="text-transform: capitalize;">${k}</span>
+              <span>${(v * 100).toFixed(1)}%</span>
+            </div>
+            <div class="bar-bg">
+              <div class="bar-fill" style="width: ${v * 100}%; background-color: ${color};"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+      $("metrics-container").innerHTML = metricsHtml;
+    }
+
+    $("task-desc").textContent = o.task_description || "No description provided.";
+
+    // Sample Rows Rendering
+    if (o.sample_rows && o.sample_rows.length > 0) {
+      const cols = Object.keys(o.sample_rows[0]);
+      let html = `<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>`;
+      
+      o.sample_rows.forEach(row => {
+        html += `<tr>${cols.map(c => {
+          const v = row[c];
+          const isNull = v === null || v === "NULL" || v === "NaN" || v === "N/A";
+          return `<td>${isNull ? `<span class="null-val">NULL</span>` : v}</td>`;
+        }).join("")}</tr>`;
+      });
+      html += "</tbody></table>";
+      $("sample-table").innerHTML = html;
+    }
+
+    // Column Stats Rendering
+    if (o.columns && o.columns.length > 0) {
+      let html = `<table><thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Unique</th></tr></thead><tbody>`;
+      o.columns.forEach(c => {
+        const missingPct = (c.missing_pct || 0);
+        const cls = missingPct > 0.2 ? "warn-text" : missingPct === 0 ? "ok-text" : "";
+        html += `<tr>
+          <td style="font-weight: 500;">${c.name}</td>
+          <td style="color:var(--text-muted)">${c.dtype}</td>
+          <td class="${cls}">${(missingPct * 100).toFixed(1)}%</td>
+          <td>${c.unique_count}</td>
+        </tr>`;
+      });
+      html += "</tbody></table>";
+      $("col-stats").innerHTML = html;
+    }
+
+    // History Log Rendering
+    if (o.action_history && o.action_history.length > 0) {
+      const html = o.action_history.slice().reverse().map(a => {
+        const actionText = `${a.action.type}${a.action.column ? ` <span style="color:var(--text-muted)">(${a.action.column})</span>` : ""}`;
+        const rewardText = `${a.reward >= 0 ? "+" : ""}${Number(a.reward).toFixed(4)}`;
+        return `
+          <div class="hist-item">
+            <span>${actionText}</span>
+            <span class="${a.reward >= 0 ? "reward-pos" : "reward-neg"}">${rewardText}</span>
+          </div>`;
+      }).join("");
+      $("history").innerHTML = html;
+    } else {
+      $("history").innerHTML = '<span style="color: var(--text-muted); font-size: 13px;">No actions taken yet.</span>';
+    }
+  }
+
+  // Event Listeners
+  $("btn-reset").addEventListener("click", reset);
+  $("btn-step").addEventListener("click", step);
+  
+  // Enter key support for inputs
+  $("action-col").addEventListener("keypress", (e) => { if(e.key === "Enter" && !$("btn-step").disabled) step(); });
+  $("action-params").addEventListener("keypress", (e) => { if(e.key === "Enter" && !$("btn-step").disabled) step(); });
+</script>
+</body>
+</html>
