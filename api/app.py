@@ -4,15 +4,17 @@ FastAPI wrapper exposing the ETL OpenEnv interface over HTTP.
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
+from pathlib import Path
 import uvicorn
-
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+import traceback
 
 from env.environment import ETLEnvironment
 from env.models import Action, StepResult, Observation
+
 
 app = FastAPI(
     title="ETL OpenEnv API",
@@ -20,8 +22,16 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Allow frontend access (important for deployment)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Single global environment instance per session
-# For multi-user: replace with session-based dict
 _env: Optional[ETLEnvironment] = None
 
 
@@ -46,28 +56,38 @@ def reset(req: ResetRequest):
     global _env
     try:
         _env = ETLEnvironment(task_path=req.task_path)
-        obs = _env.reset()
-        return obs
+        return _env.reset()
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/step", response_model=StepResult)
 def step(req: StepRequest):
     if _env is None:
-        raise HTTPException(status_code=400, detail="Environment not initialized. Call /reset first.")
+        raise HTTPException(
+            status_code=400,
+            detail="Environment not initialized. Call /reset first."
+        )
     try:
-        result = _env.step(req.action)
-        return result
-    except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return _env.step(req.action)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/state")
 def state():
     if _env is None:
-        raise HTTPException(status_code=400, detail="Environment not initialized. Call /reset first.")
-    return _env.state()
+        raise HTTPException(
+            status_code=400,
+            detail="Environment not initialized. Call /reset first."
+        )
+    try:
+        return _env.state()
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")
@@ -81,16 +101,24 @@ def list_actions():
     from env.models import ActionType
     return {"actions": [a.value for a in ActionType]}
 
-from pathlib import Path
 
-@app.get("/", response_class=HTMLResponse)
+# ------------------------------------------------------------------
+# UI Route (Robust + Deployment Safe)
+# ------------------------------------------------------------------
+
+@app.get("/")
 def ui():
     file_path = Path(__file__).parent / "index.html"
+
     if not file_path.exists():
         raise HTTPException(status_code=500, detail="index.html not found")
 
-    return file_path.read_text(encoding="utf-8")
+    return FileResponse(file_path)
 
+
+# ------------------------------------------------------------------
+# Local Run
+# ------------------------------------------------------------------
 
 if __name__ == "__main__":
     uvicorn.run("api.app:app", host="0.0.0.0", port=8000, reload=True)
